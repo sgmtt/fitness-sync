@@ -15,7 +15,8 @@ Ouraはリフレッシュ時に新しいrefresh_tokenを返すことがある。
 
 import os
 import sys
-from datetime import date, timedelta
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import requests
 from dotenv import load_dotenv
@@ -94,8 +95,9 @@ def build_condition_properties(sleep_score, readiness_score, hrv, resting_hr, sl
 
 
 def main():
-    # Ouraのデータは前日の睡眠を当日に反映する形になるため、前日分を対象にする
-    target_date = date.today() - timedelta(days=1)
+    # Ouraのデータは前日の睡眠を当日に反映する形になるため、前日分を対象にする。
+    # Actions実行環境はUTCのため、日付は日本時間基準で計算する
+    target_date = datetime.now(ZoneInfo("Asia/Tokyo")).date() - timedelta(days=1)
     date_str = target_date.isoformat()
 
     access_token = refresh_access_token()

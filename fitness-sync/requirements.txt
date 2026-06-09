@@ -4,3 +4,4 @@ python-dotenv
 garminconnect
 anthropic
 matplotlib
+tzdata

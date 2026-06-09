@@ -13,7 +13,8 @@ notion_writer.upsert_page を match_by_title=True で呼び、
 
 import os
 import sys
-from datetime import date, timedelta
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from garminconnect import Garmin
 from dotenv import load_dotenv
@@ -137,7 +138,8 @@ def build_properties(client, activity, kind):
 
 
 def main():
-    target_date = date.today() - timedelta(days=1)
+    # Actions実行環境はUTCのため、日付は日本時間基準で計算する
+    target_date = datetime.now(ZoneInfo("Asia/Tokyo")).date() - timedelta(days=1)
     date_str = target_date.isoformat()
 
     client = login()

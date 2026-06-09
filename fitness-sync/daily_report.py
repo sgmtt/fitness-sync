@@ -14,7 +14,15 @@ GitHub Actions側で daily_sync(Oura/Garmin同期)の後に実行する想定。
 import os
 import sys
 import json
-from datetime import date, timedelta
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+JST = ZoneInfo("Asia/Tokyo")
+
+
+def yesterday_jst():
+    """日本時間での「昨日」。Actions実行環境はUTCのため明示的にJSTで計算する。"""
+    return datetime.now(JST).date() - timedelta(days=1)
 
 import matplotlib
 
@@ -451,7 +459,7 @@ def send(date_str):
 
 def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else "all"
-    date_str = (date.today() - timedelta(days=1)).isoformat()
+    date_str = yesterday_jst().isoformat()
 
     if mode == "generate":
         generate(date_str)
