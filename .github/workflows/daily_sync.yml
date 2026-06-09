@@ -39,8 +39,9 @@ jobs:
       - name: Run Garmin sync
         working-directory: fitness-sync
         env:
-          GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
-          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+          # データセンターIPからのパスワードログインはGarminにブロックされるため
+          # 手元PCで取得したOAuthトークン(garmin_auth.py)を使う
+          GARMIN_TOKENS: ${{ secrets.GARMIN_TOKENS }}
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_WORKOUT_DS_ID: ${{ secrets.NOTION_WORKOUT_DS_ID }}
         run: python garmin_sync.py

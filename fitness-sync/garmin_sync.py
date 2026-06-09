@@ -37,8 +37,20 @@ STRENGTH_TYPES = {"strength_training"}
 
 
 def login():
+    # 保存済みOAuthトークンを優先(GitHub Actions等のデータセンターIPからの
+    # パスワードログインはGarminに429/MFA要求でブロックされるため)。
+    # トークンは garmin_auth.py を手元PCで実行して取得する(約1年有効)。
+    tokens = os.environ.get("GARMIN_TOKENS")
+    if tokens:
+        client = Garmin()
+        client.login(tokenstore=tokens)
+        return client
+
     if not (GARMIN_EMAIL and GARMIN_PASSWORD):
-        sys.exit("GARMIN_EMAIL / GARMIN_PASSWORD が未設定です。.env に設定してください。")
+        sys.exit(
+            "GARMIN_TOKENS も GARMIN_EMAIL/GARMIN_PASSWORD も未設定です。\n"
+            "garmin_auth.py を手元PCで実行してトークンを取得してください。"
+        )
 
     client = Garmin(GARMIN_EMAIL, GARMIN_PASSWORD)
     client.login()
