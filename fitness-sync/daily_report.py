@@ -35,9 +35,11 @@ from notion_writer import (
 
 load_dotenv()
 
-DAILY_CONDITION_DS_ID = os.environ["NOTION_DAILY_CONDITION_DS_ID"]
-WORKOUT_DS_ID = os.environ["NOTION_WORKOUT_DS_ID"]
-MEAL_DS_ID = os.environ["NOTION_MEAL_DS_ID"]
+# sendサブコマンドはNotionにアクセスしないため、ここでは必須にしない
+# (generate実行時にNoneのままならNotionクエリで自然に失敗する)
+DAILY_CONDITION_DS_ID = os.environ.get("NOTION_DAILY_CONDITION_DS_ID")
+WORKOUT_DS_ID = os.environ.get("NOTION_WORKOUT_DS_ID")
+MEAL_DS_ID = os.environ.get("NOTION_MEAL_DS_ID")
 
 REPORTS_DIR = os.path.join(os.path.dirname(__file__), "reports")
 
