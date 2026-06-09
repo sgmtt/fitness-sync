@@ -9,6 +9,8 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # レポートJPEGのコミット&pushに必要
     steps:
       - uses: actions/checkout@v4
 
