@@ -1,0 +1,97 @@
+name: Daily fitness sync
+
+on:
+  schedule:
+    # 毎日 UTC 22:00 = 日本時間 翌7:00 に実行
+    - cron: "0 22 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # 日本語フォント(レポートのJPEG描画用)
+      - name: Install Japanese fonts
+        run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
+
+      - name: Install dependencies
+        working-directory: fitness-sync
+        run: pip install -r requirements.txt
+
+      - name: Run Oura sync
+        working-directory: fitness-sync
+        env:
+          OURA_CLIENT_ID: ${{ secrets.OURA_CLIENT_ID }}
+          OURA_CLIENT_SECRET: ${{ secrets.OURA_CLIENT_SECRET }}
+          OURA_REFRESH_TOKEN: ${{ secrets.OURA_REFRESH_TOKEN }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DAILY_CONDITION_DS_ID: ${{ secrets.NOTION_DAILY_CONDITION_DS_ID }}
+        run: python oura_sync.py
+
+      - name: Run Garmin sync
+        working-directory: fitness-sync
+        env:
+          GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
+          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_WORKOUT_DS_ID: ${{ secrets.NOTION_WORKOUT_DS_ID }}
+        run: python garmin_sync.py
+
+      # 1) レポートJPEGを生成(LINE本文も _message.txt に書き出す)
+      - name: Generate daily report
+        working-directory: fitness-sync
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DAILY_CONDITION_DS_ID: ${{ secrets.NOTION_DAILY_CONDITION_DS_ID }}
+          NOTION_WORKOUT_DS_ID: ${{ secrets.NOTION_WORKOUT_DS_ID }}
+          NOTION_MEAL_DS_ID: ${{ secrets.NOTION_MEAL_DS_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python daily_report.py generate
+
+      # 2) JPEGをコミット&push(raw.githubusercontent.com で公開URLにする)。
+      #    LINEの画像メッセージは公開HTTPS URLを要求するため、送信より前にpushする。
+      - name: Commit report image
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add fitness-sync/reports/*.jpg || true
+          if ! git diff --cached --quiet; then
+            git commit -m "Add daily report $(date -u +%Y-%m-%d)"
+            git push
+          else
+            echo "No new report to commit."
+          fi
+
+      # 3) 公開URLが到達可能になった状態でLINE送信
+      - name: Send report to LINE
+        working-directory: fitness-sync
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          REPORT_PUBLIC_BASE_URL: ${{ secrets.REPORT_PUBLIC_BASE_URL }}
+        run: python daily_report.py send
+
+      # Ouraはリフレッシュ時に新しいrefresh_tokenを発行することがある。
+      # oura_sync.py はローテーションを検知すると new_oura_refresh_token.txt を書き出すので、
+      # それを検知したら gh CLI でリポジトリの Secrets を上書きする。
+      # GH_PAT には「Secrets の書き込み権限を持つ Personal Access Token」を別途登録しておくこと
+      # (リポジトリの GITHUB_TOKEN には Secrets を更新する権限がないため)。
+      - name: Update OURA_REFRESH_TOKEN secret if rotated
+        working-directory: fitness-sync
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          if [ -f new_oura_refresh_token.txt ]; then
+            echo "Refresh token was rotated. Updating repository secret..."
+            gh secret set OURA_REFRESH_TOKEN --repo "${{ github.repository }}" < new_oura_refresh_token.txt
+            rm new_oura_refresh_token.txt
+          else
+            echo "No rotation detected. Nothing to update."
+          fi

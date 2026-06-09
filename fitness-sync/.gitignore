@@ -1,0 +1,6 @@
+.env
+__pycache__/
+*.pyc
+oura_token.json
+new_oura_refresh_token.txt
+reports/_message.txt

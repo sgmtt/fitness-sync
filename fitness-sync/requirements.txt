@@ -1,0 +1,6 @@
+requests
+notion-client
+python-dotenv
+garminconnect
+anthropic
+matplotlib
